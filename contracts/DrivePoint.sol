@@ -1,14 +1,25 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.4;
 
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/KeeperCompatibleInterface.sol";
 
-contract MerchantBackend is ERC20, Ownable, KeeperCompatibleInterface {
+interface IERC20MintableBurnable is IERC20 {
+    function mint(address, uint256) external;
+
+    function burnFrom(address, uint256) external;
+}
+
+interface IERC721MintableBurnable is IERC721 {
+    function safeMint(address, uint256) external;
+
+    function burn(uint256) external;
+}
+
+contract DrivePoint is Ownable, KeeperCompatibleInterface {
     using Counters for Counters.Counter;
 
     event CreatedToken(address tAddress);
@@ -17,31 +28,19 @@ contract MerchantBackend is ERC20, Ownable, KeeperCompatibleInterface {
     event CarBorrowed(address borrower, uint256 borrowedAt);
     event CarReturned(address borrower, uint256 borrowedAt);
 
-    uint256 public totalSupply;
-    address public tokenAddress;
     uint256 public lockupAmount = 100000000000;
     Counters.Counter private tokenIdCounter;
     uint256 private constant BORROWING_PERIOD = 1 hours; // Can be modified to desired period
+    IERC20MintableBurnable public paymentToken;
+    IERC721MintableBurnable public collection;
 
-    constructor(uint256 _totalSupply) ERC20("Reputation Tokens", "REP") payable {
-        owner = msg.sender;
-        totalSupply = _totalSupply; //1000
+    constructor(address _paymentToken, address _collection) {
+        paymentToken = IERC20MintableBurnable(_paymentToken);
+        collection = IERC721MintableBurnable(_collection);
     }
 
-    function createNFT(string memory name, string memory symbol)
-    IERC721(name, symbol)
-        external
-        payable
-        onlyOwner
-    {
-       
-    }
-
-    function mintNFT(address token, bytes[] memory metadata)
-        external
-        onlyOwner
-    {
-        ERC20(token).mint(metadata);
+    function mintNFT(uint256 tokenId) external onlyOwner {
+        collection.safeMint(msg.sender, tokenId);
         uint256 tokenId = tokenIdCounter.current();
         tokenIdCounter.increment();
         emit MintedToken(tokenId);
@@ -65,14 +64,12 @@ contract MerchantBackend is ERC20, Ownable, KeeperCompatibleInterface {
 
     function scoring(address receiver, uint256 amount) external onlyOwner {
         require(amount <= 5, "Only can allocate up to 5 REP tokens");
-        IERC20(tokenAddress).transfer(receiver, amount);
+        paymentToken.transfer(receiver, amount);
     }
 
-    function checkUpkeep(bytes calldata checkData)
-        external
-        override
-        returns (bool upkeepNeeded, bytes memory performData)
-    {
+    function checkUpkeep(
+        bytes calldata checkData
+    ) external override returns (bool upkeepNeeded, bytes memory performData) {
         uint256 borrowedAt;
         uint256 returnBy;
         (borrowedAt, returnBy) = abi.decode(checkData, (uint256, uint256));
@@ -98,4 +95,3 @@ contract MerchantBackend is ERC20, Ownable, KeeperCompatibleInterface {
         revert("Car not returned within the borrowing period");
     }
 }
-
