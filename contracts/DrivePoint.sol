@@ -41,9 +41,9 @@ contract DrivePoint is Ownable, KeeperCompatibleInterface {
 
     function mintNFT(uint256 tokenId) external onlyOwner {
         collection.safeMint(msg.sender, tokenId);
-        uint256 tokenId = tokenIdCounter.current();
+        uint256 tokenIds = tokenIdCounter.current();
         tokenIdCounter.increment();
-        emit MintedToken(tokenId);
+        emit MintedToken(tokenIds);
     }
 
     function borrowing(address nftAddress, uint256 tokenId) external payable {

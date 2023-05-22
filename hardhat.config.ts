@@ -20,8 +20,8 @@ const config: HardhatUserConfig = {
   solidity: "0.8.4",
   paths: { tests: "tests" },
   networks: {
-    ropsten: {
-      url: process.env.GOERLI || "",
+    mumbai: {
+      url: process.env.MUMBAI || "",
       accounts:
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
